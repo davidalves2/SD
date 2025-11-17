@@ -1,20 +1,26 @@
 package Servidor;
 
 import Main.Connector;
+import Main.Event;
+import Main.Frame;
 
 public class Worker implements Runnable {
     private final Connector connector;
+    private final Gestor gestor;
 
-    public Worker(Connector connector) {
+    private boolean autenticado = false;
+    private String username = null;
+
+    public Worker(Connector connector, Gestor gestor) {
         this.connector = connector;
+        this.gestor = gestor;
     }
 
     public void run() {
-        try {
+        try (connector){
             while (true) {
 
-                System.out.println("Worker a correr (Lógica pendente do ajuste ReceiveAny)");
-                Thread.sleep(1000);
+
             }
         } catch (Exception e) {
             System.out.println("Cliente desconectou.");

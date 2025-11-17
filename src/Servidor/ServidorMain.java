@@ -13,13 +13,15 @@ public class ServidorMain {
         try (ServerSocket serverSocket = new ServerSocket(port)){
             System.out.println("Servidor criado com sucesso!");
 
+            Gestor gestor = new Gestor();
+
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Cliente encontrado!");
 
                 Connector connector = new Connector(clientSocket);
 
-                Worker worker = new Worker(connector);
+                Worker worker = new Worker(connector, gestor);
 
                 Thread threadClient = new Thread(worker);
                 threadClient.start();
