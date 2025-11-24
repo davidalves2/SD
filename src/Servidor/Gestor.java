@@ -4,12 +4,14 @@ import Main.Event;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Gestor {
 
     private final Map<String, String> utilizadores = new HashMap<>();
-    private final Lock lockUtilizadores = new ReentrantLock();
+    private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final Lock readLock = rwLock.readLock();
+    private final Lock writeLock = rwLock.writeLock();
 
     public Gestor() {
         utilizadores.put("admin", "admin");
@@ -17,33 +19,31 @@ public class Gestor {
     }
 
     public boolean autenticar(String user, String pass) {
-        lockUtilizadores.lock(); // Tranca o cofre de utilizadores
+        readLock.lock();
         try {
             System.out.println("[GESTOR] A tentar login: " + user);
             return utilizadores.containsKey(user) && utilizadores.get(user).equals(pass);
         } finally {
-            lockUtilizadores.unlock();
+            readLock.unlock();
         }
     }
 
     public boolean registar(String user, String pass) {
-        lockUtilizadores.lock();
+        writeLock.lock();
         try {
             System.out.println("[GESTOR] A tentar registo: " + user);
 
             if (!utilizadores.containsKey(user)) {
                 utilizadores.put(user, pass);
-                return true; // Sucesso
+                return true;
             }
-
             return false;
         } finally {
-            lockUtilizadores.unlock(); // Destranca
+            writeLock.unlock();
         }
     }
 
     public void registarEvento(Event e) {
-        // TODO: Implementar a lógica de guardar o evento no dia certo
         System.out.println("[GESTOR] Evento recebido: " + e.toString());
     }
 }
