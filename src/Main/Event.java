@@ -15,7 +15,7 @@ public class Event {
         this.precoUnidade = precoUnidade;
     }
 
-    public void serealize(DataOutputStream out) throws IOException {
+    public void serialize(DataOutputStream out) throws IOException {
         out.writeUTF(this.nomeProduto);
         out.writeInt(this.quantidade);
         out.writeDouble(this.precoUnidade);

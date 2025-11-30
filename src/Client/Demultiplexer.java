@@ -1,4 +1,7 @@
-package Main;
+package Client;
+
+import Main.Connector;
+import Main.Frame;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -14,11 +17,18 @@ public class Demultiplexer implements AutoCloseable {
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
 
+    private final Thread receiverThread;
+
     private IOException exception = null;
 
     public Demultiplexer(Socket socket) throws IOException {
         this.connector = new Connector(socket);
-        new Thread(this::receiveLoop).start();
+
+        this.receiverThread = new Thread(this::receiveLoop);
+    }
+
+    public void start() {
+        this.receiverThread.start();
     }
 
     public void send(int tag, byte[] data) throws IOException {
@@ -61,6 +71,10 @@ public class Demultiplexer implements AutoCloseable {
             try {
                 exception = e;
                 condition.signalAll();
+
+                System.out.println("CRÍTICO: O Servidor desligou-se. A encerrar cliente...");
+                System.exit(1);
+
             } finally {
                 lock.unlock();
             }
@@ -71,4 +85,3 @@ public class Demultiplexer implements AutoCloseable {
         connector.close();
     }
 }
-
