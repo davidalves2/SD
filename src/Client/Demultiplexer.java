@@ -20,11 +20,13 @@ public class Demultiplexer implements AutoCloseable {
     private final Thread receiverThread;
 
     private IOException exception = null;
+    private volatile boolean running = true;
 
     public Demultiplexer(Socket socket) throws IOException {
         this.connector = new Connector(socket);
 
         this.receiverThread = new Thread(this::receiveLoop);
+        this.receiverThread.setDaemon(true);
     }
 
     public void start() {
@@ -33,18 +35,23 @@ public class Demultiplexer implements AutoCloseable {
 
     public void send(int tag, byte[] data) throws IOException {
         if (exception != null) throw exception;
+        if (!running) throw new IOException("Demultiplexer fechado");
         connector.send(tag, data);
     }
 
     public byte[] receive(int tag) throws InterruptedException, IOException {
         lock.lock();
         try {
-            while (!buffer.containsKey(tag) && exception == null) {
+            while (!buffer.containsKey(tag) && exception == null && running) {
                 condition.await();
             }
 
             if (exception != null) {
-                throw new IOException("A thread de leitura falhou", exception);
+                throw new IOException("Thread de leitura falhou", exception);
+            }
+
+            if (!running && !buffer.containsKey(tag)) {
+                throw new IOException("Demultiplexer fechado antes de receber resposta");
             }
 
             return buffer.remove(tag);
@@ -55,7 +62,7 @@ public class Demultiplexer implements AutoCloseable {
 
     private void receiveLoop() {
         try {
-            while (true) {
+            while (running) {
                 Frame frame = connector.receive();
 
                 lock.lock();
@@ -69,12 +76,12 @@ public class Demultiplexer implements AutoCloseable {
         } catch (IOException e) {
             lock.lock();
             try {
-                exception = e;
-                condition.signalAll();
+                if (running) {
+                    exception = e;
+                    condition.signalAll();
 
-                System.out.println("CRÍTICO: O Servidor desligou-se. A encerrar cliente...");
-                System.exit(1);
-
+                    System.err.println("Conexao perdida com servidor: " + e.getMessage());
+                }
             } finally {
                 lock.unlock();
             }
@@ -82,6 +89,20 @@ public class Demultiplexer implements AutoCloseable {
     }
 
     public void close() throws IOException {
+        lock.lock();
+        try {
+            running = false;
+            condition.signalAll();
+        } finally {
+            lock.unlock();
+        }
+
         connector.close();
+
+        try {
+            receiverThread.join(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
